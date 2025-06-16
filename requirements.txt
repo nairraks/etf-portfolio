@@ -4,3 +4,6 @@ numpy>=1.21.0
 pandas>=1.3.0
 plotly>=5.0.0
 yfinance>=0.1.70
+requests>=2.25.0
+justetf-scraping
+openbb>=4.0.0
