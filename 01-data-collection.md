@@ -1,3 +1,16 @@
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.16.4
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
 # Data Collection and ETF Universe Definition
 
 This chapter covers the comprehensive approach to collecting and organizing ETF data for portfolio construction. We'll define our investment universe based on GDP and MSCI classification, scrape ETF data from multiple sources, and verify ETF availability on trading platforms.
@@ -31,10 +44,14 @@ import numpy as np
 import requests
 import json
 import os
-import justetf_scraping
 
-# Install required package if not already installed
-# !pip install git+https://github.com/druzsan/justetf-scraping.git
+# Optional imports with error handling
+try:
+    import justetf_scraping
+    JUSTETF_AVAILABLE = True
+except ImportError:
+    JUSTETF_AVAILABLE = False
+    print("justetf-scraping not available. Install with: pip install git+https://github.com/druzsan/justetf-scraping.git")
 ```
 
 ## Define Investment Universe
@@ -77,67 +94,72 @@ print(country_df)
 Now we'll collect ETF data for both equity and bond ETFs across our defined regions using the justetf-scraping library.
 
 ```{code-cell} python
-import traceback
+if JUSTETF_AVAILABLE:
+    import traceback
 
-# Define asset classes to collect
-asset_classes = [
-    "class-equity", 
-    "class-bonds"
-]
+    # Define asset classes to collect
+    asset_classes = [
+        "class-equity", 
+        "class-bonds"
+    ]
 
-# Group countries by region for data organization
-region_countries = country_df.groupby('Region')['Short_name'].apply(list).to_dict()
+    # Group countries by region for data organization
+    region_countries = country_df.groupby('Region')['Short_name'].apply(list).to_dict()
 
-# Create mapping dictionaries
-country_to_region = dict(zip(country_df['Short_name'], country_df['Region']))
-country_to_country_name = dict(zip(country_df['Short_name'], country_df['Country']))
-country_to_msci = dict(zip(country_df['Short_name'], country_df['MSCI']))
+    # Create mapping dictionaries
+    country_to_region = dict(zip(country_df['Short_name'], country_df['Region']))
+    country_to_country_name = dict(zip(country_df['Short_name'], country_df['Country']))
+    country_to_msci = dict(zip(country_df['Short_name'], country_df['MSCI']))
 
-# Create a mapping of MSCI and Region to Category
-msci_region_to_category = {
-    ('Developed', 'AmericasandUK'): 'Developed_AmericasandUK',
-    ('Developed', 'EMEA'): 'Developed_EMEA',
-    ('Developed', 'APAC'): 'Developed_APAC',
-    ('Emerging', 'Americas'): 'Emerging_Americas',
-    ('Emerging', 'APACandEMEA'): 'Emerging_APACandEMEA'
-}
+    # Create a mapping of MSCI and Region to Category
+    msci_region_to_category = {
+        ('Developed', 'AmericasandUK'): 'Developed_AmericasandUK',
+        ('Developed', 'EMEA'): 'Developed_EMEA',
+        ('Developed', 'APAC'): 'Developed_APAC',
+        ('Emerging', 'Americas'): 'Emerging_Americas',
+        ('Emerging', 'APACandEMEA'): 'Emerging_APACandEMEA'
+    }
 
-# Iterate over asset classes and countries
-for asset_class in asset_classes:
-    for country in country_df['Short_name']:
-        try:
-            # Load ETF data by country if equity, else load by currency
-            if asset_class == "class-equity":
-                df = justetf_scraping.load_overview(asset_class=asset_class, country=country, local_country="GB")
-            else:
-                # For bonds, we need to specify the currency as well
-                currency = country_df[country_df['Short_name'] == country]['Currency'].values[0]
-                df = justetf_scraping.load_overview(asset_class=asset_class, instrument_currency=currency, local_country="GB")
-                        
-            # Add region and country information
-            df['region'] = country_to_region[country]
-            df['country'] = country_to_country_name[country]
-            
-            # Map MSCI and Region to Category
-            msci = country_to_msci[country]
-            region = country_to_region[country]
-            region_category = msci_region_to_category.get((msci, region), "Unknown")
-            df['region_category'] = region_category
-            
-            # Create filename based on asset class and category
-            filename = f'justetf_{asset_class}_{region_category.lower()}.csv'.lower()
-            
-            # Append to existing file if it exists, otherwise create new
-            if os.path.exists(filename):
-                existing_df = pd.read_csv(filename)
-                combined_df = pd.concat([existing_df, df], ignore_index=True).drop_duplicates(subset=['ticker'])
-                combined_df.to_csv(filename, index=False)
-            else:
-                df.to_csv(filename, index=False)
-            
-            print(f"Processed {country} data for {asset_class}")
-        except Exception as e:
-            print(f"Error scraping {asset_class} for {country}: {e}")
+    # Iterate over asset classes and countries
+    for asset_class in asset_classes:
+        for country in country_df['Short_name']:
+            try:
+                # Load ETF data by country if equity, else load by currency
+                if asset_class == "class-equity":
+                    df = justetf_scraping.load_overview(asset_class=asset_class, country=country, local_country="GB")
+                else:
+                    # For bonds, we need to specify the currency as well
+                    currency = country_df[country_df['Short_name'] == country]['Currency'].values[0]
+                    df = justetf_scraping.load_overview(asset_class=asset_class, instrument_currency=currency, local_country="GB")
+                            
+                # Add region and country information
+                df['region'] = country_to_region[country]
+                df['country'] = country_to_country_name[country]
+                
+                # Map MSCI and Region to Category
+                msci = country_to_msci[country]
+                region = country_to_region[country]
+                region_category = msci_region_to_category.get((msci, region), "Unknown")
+                df['region_category'] = region_category
+                
+                # Create filename based on asset class and category
+                filename = f'justetf_{asset_class}_{region_category.lower()}.csv'.lower()
+                
+                # Append to existing file if it exists, otherwise create new
+                if os.path.exists(filename):
+                    existing_df = pd.read_csv(filename)
+                    combined_df = pd.concat([existing_df, df], ignore_index=True).drop_duplicates(subset=['ticker'])
+                    combined_df.to_csv(filename, index=False)
+                else:
+                    df.to_csv(filename, index=False)
+                
+                print(f"Processed {country} data for {asset_class}")
+            except Exception as e:
+                print(f"Error scraping {asset_class} for {country}: {e}")
+else:
+    print("JustETF scraping requires: pip install git+https://github.com/druzsan/justetf-scraping.git")
+    print("This section demonstrates the data collection approach but cannot execute without the library.")
+    print("The code above shows how to systematically collect ETF data by region and asset class.")
 ```
 
 ## Alpha Vantage API Integration
@@ -218,26 +240,34 @@ OpenBB provides additional market data and analysis capabilities.
 ```{code-cell} python
 try:
     from openbb import obb
-    
-    # Get available indices
-    available_indices = obb.index.available(provider="yfinance").to_df()
-    print("Available Indices:")
-    print(available_indices.head())
-    
-    # Get historical data for SPY ETF
-    spy_data = obb.equity.price.historical(symbol="SPY", provider="yfinance").to_df()
-    print("\nSPY Historical Data:")
-    print(spy_data.head())
-    
-    # Search for ETF symbols
-    search_results = obb.equity.search("IBZL").to_df()
-    print("\nETF Search Results:")
-    print(search_results)
-    
+    OPENBB_AVAILABLE = True
 except ImportError:
+    OPENBB_AVAILABLE = False
     print("OpenBB not available. Install with: pip install openbb")
-except Exception as e:
-    print(f"Error using OpenBB: {e}")
+
+if OPENBB_AVAILABLE:
+    try:
+        # Get available indices
+        available_indices = obb.index.available(provider="yfinance").to_df()
+        print("Available Indices:")
+        print(available_indices.head())
+        
+        # Get historical data for SPY ETF
+        spy_data = obb.equity.price.historical(symbol="SPY", provider="yfinance").to_df()
+        print("\nSPY Historical Data:")
+        print(spy_data.head())
+        
+        # Search for ETF symbols
+        search_results = obb.equity.search("IBZL").to_df()
+        print("\nETF Search Results:")
+        print(search_results)
+        
+    except Exception as e:
+        print(f"Error using OpenBB: {e}")
+else:
+    print("OpenBB integration examples require the openbb package")
+    print("This demonstrates how to use OpenBB for additional market data and analysis")
+    print("Install with: pip install openbb")
 ```
 
 ## Data Collection Summary
