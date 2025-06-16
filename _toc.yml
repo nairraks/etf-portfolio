@@ -1,0 +1,11 @@
+# Table of contents
+# Learn more at https://jupyterbook.org/customize/toc.html
+
+format: jb-book
+root: intro
+chapters:
+- file: 01-data-collection
+- file: 02-etf-screening
+- file: 03-portfolio-construction
+- file: 04-performance-tracking
+- file: 05-rebalancing
