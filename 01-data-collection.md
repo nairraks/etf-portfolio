@@ -2,6 +2,8 @@
 
 This chapter covers the essential techniques for gathering and preparing financial data for ETF portfolio analysis.
 
+
+
 ## Overview
 
 Data collection is the foundation of any quantitative investment strategy. In this chapter, you'll learn how to:
